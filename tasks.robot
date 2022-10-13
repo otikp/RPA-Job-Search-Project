@@ -3,6 +3,7 @@ Library     RPA.Browser.Selenium    auto_close=${FALSE}
 Library     RPA.Dialogs
 Library     RPA.Desktop
 Library     Collections
+Library     RPA.Excel.Files
 
 
 *** Variables ***
@@ -14,9 +15,9 @@ ${SEARCH_URL3}      https://fi.indeed.com/jobs?q=
 *** Tasks ***
 Scraping jobs and Search for joblistings with Keywords
     ${search_query}=    Collect search query from user
-    #Scraping Duunitori    ${search_query}
+    Scraping Duunitori    ${search_query}
     Scraping Monster    ${search_query}
-    #Scraping Indeed    ${search_query}
+    Scraping Indeed    ${search_query}
 
 
 *** Keywords ***
@@ -29,7 +30,7 @@ Scraping Duunitori
     [Arguments]    ${search_query}
     Open Available Browser    ${SEARCH_URL}${search_query}
     Click Element When Visible    class=gdpr-close
-    ${elements}=    Get WebElements    class=job-box__hover
+    ${elements}=    Get WebElements    class=gtm-search-result
 
     FOR    ${element}    IN    @{elements}
         ${text}=    Get Text    ${element}
@@ -40,15 +41,15 @@ Scraping Duunitori
 Scraping Monster
     [Arguments]    ${search_query}
     Open Available Browser    ${SEARCH_URL2}${search_query}
-    maximize browser window
     Click Element When Visible    id=almacmp-modalConfirmBtn
-    ${elements}=    Get WebElements    class= node
+    ${elements}=    Get WebElements    class=gtm-search-result
+
     FOR    ${element}    IN    @{elements}
         ${text}=    Get Text    ${element}
-        ${url} =  Execute Javascript  return window.document.getElementsByClassName("recruiter-job-link recruiter-jobs-new-tab-processed").href;
+
         Log To Console    ${text}
-        Log To Console    ${url}
     END
+
 Scraping Indeed
     [Arguments]    ${search_query}
     Open Available Browser    ${SEARCH_URL3}${search_query}
@@ -72,5 +73,25 @@ Scraping Indeed
 
     FOR    ${element}    IN    @{elements}
         Capture Element Screenshot    ${element}    ${OUTPUT_DIR}${/}indeed${index}.png
+        ${index}=    Evaluate    ${index} + 1
+    END
+
+    ${indeedJobs}=    Create List
+
+    ${elements}=    Get WebElements    class=jobTitle
+
+    FOR    ${element}    IN    @{elements}
+        ${job}=    Get Text    ${element}
+
+        Append To List    ${indeedJobs}    ${job}
+    END
+
+    ${index}=    Set Variable    1
+
+    Create Workbook    Joblistings.xlsx
+
+    FOR    ${element}    IN    @{indeedJobs}
+        Set Cell Value    ${index}    1    ${element}
+
         ${index}=    Evaluate    ${index} + 1
     END

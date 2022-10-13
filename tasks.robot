@@ -10,17 +10,23 @@ Library     RPA.Excel.Files
 ${SEARCH_URL}       https://duunitori.fi/tyopaikat?haku=
 ${SEARCH_URL2}      https://www.monster.fi/tyopaikat?search=
 ${SEARCH_URL3}      https://fi.indeed.com/jobs?q=
+${EXECL_FILE}       Joblistings.xlsx
 
 
 *** Tasks ***
 Scraping jobs and Search for joblistings with Keywords
+    Creating a Execl File
     ${search_query}=    Collect search query from user
-    Scraping Duunitori    ${search_query}
-    Scraping Monster    ${search_query}
-    Scraping Indeed    ${search_query}
+    #Scraping Duunitori    ${search_query}
+    #Scraping Monster    ${search_query}
+    Scraping Indeed    ${search_query}    ${EXECL_FILE}
 
 
 *** Keywords ***
+Creating a Execl File
+    Create Workbook    Joblistings.xlsx
+    Save Workbook
+
 Collect search query from user
     Add text input    search    label=Search query
     ${response}=    Run dialog
@@ -51,12 +57,13 @@ Scraping Monster
     END
 
 Scraping Indeed
-    [Arguments]    ${search_query}
+    [Arguments]    ${search_query}    ${EXECL_FILE}
+    Open Workbook    ${EXECL_FILE}
     Open Available Browser    ${SEARCH_URL3}${search_query}
     Click Element When Visible    id=onetrust-accept-btn-handler
 
     #get links
-
+###########################################################
     ${indeedlinks}=    Create List
     ${elements}=    Get WebElements    css:.jcs-JobTitle
 
@@ -64,20 +71,13 @@ Scraping Indeed
         ${url}=    Get Element Attribute    ${element}    href
         Append To List    ${indeedlinks}    ${url}
     END
-    #Log To Console    ${indeedlinks}
-
-    #get screenshots
-
     ${index}=    Set Variable    1
-    ${elements}=    Get WebElements    css:div.cardOutline
-
-    FOR    ${element}    IN    @{elements}
-        Capture Element Screenshot    ${element}    ${OUTPUT_DIR}${/}indeed${index}.png
+    FOR    ${element}    IN    @{indeedlinks}
+        Set Cell Value    ${index}    3    ${element}
         ${index}=    Evaluate    ${index} + 1
     END
-
+###########################################################
     ${indeedJobs}=    Create List
-
     ${elements}=    Get WebElements    class=jobTitle
 
     FOR    ${element}    IN    @{elements}
@@ -87,11 +87,21 @@ Scraping Indeed
     END
 
     ${index}=    Set Variable    1
-
-    Create Workbook    Joblistings.xlsx
-
     FOR    ${element}    IN    @{indeedJobs}
         Set Cell Value    ${index}    1    ${element}
-
         ${index}=    Evaluate    ${index} + 1
     END
+##########################################################
+
+    ${indeedCompany}=    Create List
+    ${elements}=    Get WebElements    class=companyName
+    FOR    ${element}    IN    @{elements}
+        ${companyname}=    Get Text    ${element}
+        Append To List    ${indeedCompany}    ${companyname}
+    END
+    ${index}=    Set Variable    1
+    FOR    ${element}    IN    @{indeedCompany}
+        Set Cell Value    ${index}    2    ${element}
+        ${index}=    Evaluate    ${index} + 1
+    END
+    Save Workbook    ${EXECL_FILE}

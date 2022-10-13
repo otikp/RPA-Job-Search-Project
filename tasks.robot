@@ -17,9 +17,9 @@ ${EXECL_FILE}       Joblistings.xlsx
 Scraping jobs and Search for joblistings with Keywords
     Creating a Execl File
     ${search_query}=    Collect search query from user
-    #Scraping Duunitori    ${search_query}
+    Scraping Duunitori    ${search_query}
     #Scraping Monster    ${search_query}
-    Scraping Indeed    ${search_query}    ${EXECL_FILE}
+    #Scraping Indeed    ${search_query}    ${EXECL_FILE}
 
 
 *** Keywords ***
@@ -44,16 +44,26 @@ Scraping Duunitori
         Log To Console    ${text}
     END
 
+    ${elements}=    Get WebElements   class=job-box__hover 
+    FOR    ${element}    IN    @{elements}
+        ${url}=    Get Element Attribute    ${element}    href
+        Log To Console    ${url}
+    END
 Scraping Monster
     [Arguments]    ${search_query}
     Open Available Browser    ${SEARCH_URL2}${search_query}
     Click Element When Visible    id=almacmp-modalConfirmBtn
-    ${elements}=    Get WebElements    class=gtm-search-result
-
+    
+    ${elements}=    Get WebElements    class= node
     FOR    ${element}    IN    @{elements}
         ${text}=    Get Text    ${element}
-
         Log To Console    ${text}
+    END
+
+    ${elements}=    Get WebElements   class= recruiter-job-link
+    FOR    ${element}    IN    @{elements}
+        ${url}=    Get Element Attribute    ${element}    href
+        Log To Console    ${url}
     END
 
 Scraping Indeed

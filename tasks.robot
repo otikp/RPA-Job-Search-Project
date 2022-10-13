@@ -14,9 +14,9 @@ ${SEARCH_URL3}      https://fi.indeed.com/jobs?q=
 *** Tasks ***
 Scraping jobs and Search for joblistings with Keywords
     ${search_query}=    Collect search query from user
-    Scraping Duunitori    ${search_query}
+    #Scraping Duunitori    ${search_query}
     Scraping Monster    ${search_query}
-    Scraping Indeed    ${search_query}
+    #Scraping Indeed    ${search_query}
 
 
 *** Keywords ***
@@ -29,7 +29,7 @@ Scraping Duunitori
     [Arguments]    ${search_query}
     Open Available Browser    ${SEARCH_URL}${search_query}
     Click Element When Visible    class=gdpr-close
-    ${elements}=    Get WebElements    class=gtm-search-result
+    ${elements}=    Get WebElements    class=job-box__hover
 
     FOR    ${element}    IN    @{elements}
         ${text}=    Get Text    ${element}
@@ -40,15 +40,15 @@ Scraping Duunitori
 Scraping Monster
     [Arguments]    ${search_query}
     Open Available Browser    ${SEARCH_URL2}${search_query}
+    maximize browser window
     Click Element When Visible    id=almacmp-modalConfirmBtn
-    ${elements}=    Get WebElements    class=gtm-search-result
-
+    ${elements}=    Get WebElements    class= node
     FOR    ${element}    IN    @{elements}
         ${text}=    Get Text    ${element}
-
+        ${url} =  Execute Javascript  return window.document.getElementsByClassName("recruiter-job-link recruiter-jobs-new-tab-processed").href;
         Log To Console    ${text}
+        Log To Console    ${url}
     END
-
 Scraping Indeed
     [Arguments]    ${search_query}
     Open Available Browser    ${SEARCH_URL3}${search_query}

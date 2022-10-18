@@ -4,6 +4,10 @@ Library     RPA.Dialogs
 Library     RPA.Desktop
 Library     Collections
 Library     RPA.Excel.Files
+Library     OperatingSystem
+Library     RPA.Notifier
+Library     Dialogs
+Library     RPA.Excel.Application    autoexit=FALSE
 
 
 *** Variables ***
@@ -11,15 +15,21 @@ ${SEARCH_URL}       https://duunitori.fi/tyopaikat?haku=
 ${SEARCH_URL2}      https://www.monster.fi/tyopaikat?search=
 ${SEARCH_URL3}      https://fi.indeed.com/jobs?q=
 ${EXECL_FILE}       Joblistings.xlsx
+@{JobTitles}
+@{JobLinks}
 
 
 *** Tasks ***
 Scraping jobs and Search for joblistings with Keywords
     Creating a Execl File
     ${search_query}=    Collect search query from user
-    Scraping Duunitori    ${search_query}
-    #Scraping Monster    ${search_query}
-    #Scraping Indeed    ${search_query}    ${EXECL_FILE}
+    Create Lists    ${JobLinks}    ${JobTitles}
+    Scraping Duunitori    ${search_query}    ${JobLinks}    ${JobTitles}
+    Scraping Monster    ${search_query}    ${JobLinks}    ${JobTitles}
+    Scraping Indeed    ${search_query}    ${JobLinks}    ${JobTitles}
+    Save to Workbook    ${JobLinks}    ${JobTitles}    ${EXECL_FILE}
+    Choose to open Execl    ${EXECL_FILE}
+    [Teardown]    Close Browsers
 
 
 *** Keywords ***
@@ -32,86 +42,97 @@ Collect search query from user
     ${response}=    Run dialog
     RETURN    ${response.search}
 
+Create Lists
+    [Arguments]    ${JobLinks}    ${JobTitles}
+    ${JobLinks}=    Create List
+    ${JobTitles}=    Create List
+
 Scraping Duunitori
-    [Arguments]    ${search_query}
+    [Arguments]    ${search_query}    ${JobLinks}    ${JobTitles}
     Open Available Browser    ${SEARCH_URL}${search_query}
     Click Element When Visible    class=gdpr-close
+    Click Element When Visible    class=modal__cancel
     ${elements}=    Get WebElements    class=gtm-search-result
 
     FOR    ${element}    IN    @{elements}
         ${text}=    Get Text    ${element}
 
-        Log To Console    ${text}
+        Append To List    ${JobTitles}    ${text}
     END
 
-    ${elements}=    Get WebElements   class=job-box__hover 
+    ${elements}=    Get WebElements    class=gtm-search-result
     FOR    ${element}    IN    @{elements}
         ${url}=    Get Element Attribute    ${element}    href
-        Log To Console    ${url}
+        Append To List    ${JobLinks}    ${url}
     END
+    Close Browser
+
 Scraping Monster
-    [Arguments]    ${search_query}
+    [Arguments]    ${search_query}    ${JobLinks}    ${JobTitles}
     Open Available Browser    ${SEARCH_URL2}${search_query}
     Click Element When Visible    id=almacmp-modalConfirmBtn
-    
+
     ${elements}=    Get WebElements    class= node
     FOR    ${element}    IN    @{elements}
         ${text}=    Get Text    ${element}
-        Log To Console    ${text}
+        Append To List    ${JobTitles}    ${text}
     END
 
-    ${elements}=    Get WebElements   class= recruiter-job-link
+    ${elements}=    Get WebElements    class= recruiter-job-link
+
     FOR    ${element}    IN    @{elements}
         ${url}=    Get Element Attribute    ${element}    href
-        Log To Console    ${url}
+        Append To List    ${JobLinks}    ${url}
     END
+    Close Browser
 
 Scraping Indeed
-    [Arguments]    ${search_query}    ${EXECL_FILE}
-    Open Workbook    ${EXECL_FILE}
+    [Arguments]    ${search_query}    ${JobLinks}    ${JobTitles}
     Open Available Browser    ${SEARCH_URL3}${search_query}
     Click Element When Visible    id=onetrust-accept-btn-handler
 
-    #get links
-###########################################################
-    ${indeedlinks}=    Create List
     ${elements}=    Get WebElements    css:.jcs-JobTitle
 
     FOR    ${element}    IN    @{elements}
         ${url}=    Get Element Attribute    ${element}    href
-        Append To List    ${indeedlinks}    ${url}
+        Append To List    ${JobLinks}    ${url}
     END
-    ${index}=    Set Variable    1
-    FOR    ${element}    IN    @{indeedlinks}
-        Set Cell Value    ${index}    3    ${element}
-        ${index}=    Evaluate    ${index} + 1
-    END
-###########################################################
-    ${indeedJobs}=    Create List
+
     ${elements}=    Get WebElements    class=jobTitle
 
     FOR    ${element}    IN    @{elements}
         ${job}=    Get Text    ${element}
 
-        Append To List    ${indeedJobs}    ${job}
+        Append To List    ${JobTitles}    ${job}
     END
+    Close Browser
 
+Save TO Workbook
+    [Arguments]    ${JobLinks}    ${JobTitles}    ${EXECL_FILE}
+    RPA.Excel.Files.OpenWorkbook    ${EXECL_FILE}
+    ${JobLinks}=    Remove Duplicates    ${JobLinks}
     ${index}=    Set Variable    1
-    FOR    ${element}    IN    @{indeedJobs}
+    FOR    ${element}    IN    @{JobTitles}
         Set Cell Value    ${index}    1    ${element}
         ${index}=    Evaluate    ${index} + 1
     END
-##########################################################
-
-    ${indeedCompany}=    Create List
-    ${elements}=    Get WebElements    class=companyName
-    FOR    ${element}    IN    @{elements}
-        ${companyname}=    Get Text    ${element}
-        Append To List    ${indeedCompany}    ${companyname}
-    END
     ${index}=    Set Variable    1
-    FOR    ${element}    IN    @{indeedCompany}
-        Set Cell Value    ${index}    2    ${element}
+    FOR    ${element}    IN    @{JobLinks}
+        Set Cell Value    ${index}    2    =HYPERLINK("${element}","${element}")
         ${index}=    Evaluate    ${index} + 1
     END
     Save Workbook    ${EXECL_FILE}
+
+Close Browsers
+    Close All Browsers
+
+Choose to open Execl
+    [Arguments]    ${EXECL_FILE}
+    Add icon    Success
+    Add Heading    Open Excel?
+    Add submit buttons    buttons=No,Yes    default=No
+    ${result}=    Run dialog
+    IF    $result.submit == "Yes"
+        RPA.Excel.Application.Open Application    visible=true
+        RPA.Excel.Application.Open Workbook    ${EXECL_FILE}
+    END
